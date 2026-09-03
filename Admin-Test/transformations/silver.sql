@@ -69,7 +69,8 @@ stored as scd type 1;
 --  silver Accounts =====================================================
 
 
-create or refresh streaming table dev.silver.silver_accounts(
+-- create or refresh streaming table dev.silver.silver_accounts(
+CREATE TEMPORARY VIEW accounts_cleaned_v(
   CONSTRAINT valid_account_id
     EXPECT (account_id IS NOT NULL)
     ON VIOLATION DROP ROW,
@@ -121,13 +122,15 @@ where (opening_date IS NOT NULL)  OR (a.updated_at IS NOT NULL) or (interest_rat
 
 
 
- 
+ create or refresh streaming table dev.silver.silver_accounts;
 
--- apply changes into dev.silver.silver_accounts
--- from STREAM(accounts_cleaned_v)
--- keys(account_id)
--- sequence by updated_at
--- stored as scd type 1;
+apply changes into dev.silver.silver_accounts
+from STREAM(accounts_cleaned_v)
+keys(account_id)
+sequence by updated_at
+stored as scd type 1;
+
+
 
 
 
@@ -135,7 +138,8 @@ where (opening_date IS NOT NULL)  OR (a.updated_at IS NOT NULL) or (interest_rat
 --  transactions silver
 
 
-CREATE OR REFRESH STREAMING TABLE dev.silver.silver_transactions(
+-- CREATE OR REFRESH STREAMING TABLE dev.silver.silver_transactions(
+CREATE TEMPORARY VIEW cleaned_transaction_v (
   CONSTRAINT valid_transaction_id
     EXPECT (transaction_id IS NOT NULL)
     ON VIOLATION DROP ROW,
@@ -190,20 +194,22 @@ WHERE (transaction_date IS NOT NULL) OR (created_at IS NOT NULL);
 
 
 
+CREATE OR REFRESH STREAMING TABLE dev.silver.silver_transactions;
 
 
--- APPLY CHANGES INTO dev.silver.silver_transactions
--- FROM STREAM(transactions_cleaned_v)
--- KEYS(transaction_id)
--- SEQUENCE BY created_at
--- STORED AS SCD TYPE 1;
+APPLY CHANGES INTO dev.silver.silver_transactions
+FROM STREAM(cleaned_transaction_v)
+KEYS(transaction_id)
+SEQUENCE BY created_at
+STORED AS SCD TYPE 1;
 
 -- ========================================================================
 
 
 -- silver branches ==================================================
 
-CREATE OR REFRESH STREAMING TABLE dev.silver.silver_branches 
+-- CREATE OR REFRESH STREAMING TABLE dev.silver.silver_branches 
+CREATE TEMPORARY VIEW silver_branches_v
 (
   CONSTRAINT valid_branch_id
     EXPECT (branch_id IS NOT NULL)
@@ -240,12 +246,24 @@ SELECT
     try_to_date(b.opening_date, "yyyy-MM-dd"),
     try_to_date(b.opening_date, "MM-yyyy-dd")
   ) AS opening_date
+,
+b.ingestion_ts as ingestion_ts 
 
 FROM STREAM(dev.bronze.branches_bronze) b
     inner join STREAM(dev.silver.silver_accounts) a
     on b.branch_id = a.branch_id
 WHERE (b.opening_date IS NOT NULL);
 
+
+CREATE OR REFRESH STREAMING TABLE dev.silver.silver_branches ;
+
+
+
+APPLY CHANGES INTO dev.silver.silver_branches
+FROM STREAM(silver_branches_v)
+KEYS(branch_id)
+SEQUENCE BY ingestion_ts
+STORED AS SCD TYPE 1;
 
 
 
