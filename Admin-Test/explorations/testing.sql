@@ -1,4 +1,18 @@
 -- Databricks notebook source
+select * from dev.gold.authorized_users
+
+-- COMMAND ----------
+
+-- select * from dev.gold.authorized_users
+
+update dev.gold.authorized_users set email ='sdfd@cyntexa.com'; 
+
+-- COMMAND ----------
+
+select * from dev.gold.dim_customer;
+
+-- COMMAND ----------
+
 select * from  dev.gold.authorized_users
 -- update dev.gold.authorized_users set email ='ajay@ex.com'
 
